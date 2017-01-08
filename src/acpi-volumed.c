@@ -7,14 +7,20 @@
 #include <sys/un.h>
 #include <alsa/asoundlib.h>
 
-static snd_mixer_selem_id_t *sid;
+static char *default_playback = "Master";
+static char *default_capture = "Capture";
+static snd_mixer_selem_id_t *sid_playback;
+static snd_mixer_selem_id_t *sid_capture;
 static int smixer_level = 0;
-static int mono = 0;
-static char *mix;
+static int mono_playback = 0;
+static int mono_capture = 0;
+static char *playback;
+static char *capture;
 static char *card = "default";
 static snd_mixer_t *handle;
 static struct snd_mixer_selem_regopt smixer_options;
-static snd_mixer_elem_t *elem;
+static snd_mixer_elem_t *elem_playback;
+static snd_mixer_elem_t *elem_capture;
 
 int sock_fd;
 const char *socketfile = "/var/run/acpid.socket";
@@ -52,56 +58,90 @@ int
 setup_alsa() {
     int err = 0;
 
-    snd_mixer_selem_id_alloca(&sid);
-    snd_mixer_selem_id_set_name(sid, mix);
-
     err = get_handle();
 
-    elem = snd_mixer_find_selem(handle, sid);
-    if (!elem) {
-        error("Unable to find simple control '%s',%i\n", snd_mixer_selem_id_get_name(sid), snd_mixer_selem_id_get_index(sid));
+    snd_mixer_selem_id_alloca(&sid_playback);
+    snd_mixer_selem_id_set_name(sid_playback, playback);
+
+    elem_playback = snd_mixer_find_selem(handle, sid_playback);
+    if (!elem_playback) {
+        error("Unable to find simple control '%s',%i\n", snd_mixer_selem_id_get_name(sid_playback), snd_mixer_selem_id_get_index(sid_playback));
         snd_mixer_close(handle);
         handle = NULL;
         return -ENOENT;
     } 
 
-    mono=snd_mixer_selem_is_playback_mono(elem);
+    mono_playback=snd_mixer_selem_is_playback_mono(elem_playback);
+
+    snd_mixer_selem_id_alloca(&sid_capture);
+    snd_mixer_selem_id_set_name(sid_capture, capture);
+
+    elem_capture = snd_mixer_find_selem(handle, sid_capture);
+    if (!elem_capture) {
+        error("Unable to find simple control '%s',%i\n", snd_mixer_selem_id_get_name(sid_capture), snd_mixer_selem_id_get_index(sid_capture));
+        snd_mixer_close(handle);
+        handle = NULL;
+        return -ENOENT;
+    } 
+
+    mono_capture=snd_mixer_selem_is_capture_mono(elem_capture);
 
     return 0;
 }
 
 int
-set_alsa_toggle_mute() {
+set_alsa_toggle_playback_mute() {
     static int sw;
 
-    if (snd_mixer_selem_has_playback_switch(elem) < 0) 
+    if (snd_mixer_selem_has_playback_switch(elem_playback) < 0) 
             return -ENOENT;
 
-    if(snd_mixer_selem_get_playback_switch(elem, 0, &sw) < 0)
+    if(snd_mixer_selem_get_playback_switch(elem_playback, 0, &sw) < 0)
         return -ENOENT;
-    if(snd_mixer_selem_set_playback_switch(elem, 0, !sw) < 0)
+    if(snd_mixer_selem_set_playback_switch(elem_playback, 0, !sw) < 0)
         return -ENOENT;
 
-    if(!mono) {
-        if(snd_mixer_selem_get_playback_switch(elem, 0, &sw) < 0)
+    if(!mono_playback) {
+        if(snd_mixer_selem_get_playback_switch(elem_playback, 1, &sw) < 0)
             return -ENOENT;
-        if(snd_mixer_selem_set_playback_switch(elem, 0, !sw) < 0)
+        if(snd_mixer_selem_set_playback_switch(elem_playback, 1, !sw) < 0)
             return -ENOENT;
     }
 
 }
 
 int
-set_alsa_volume(long step) {
+set_alsa_toggle_capture_mute() {
+    static int sw;
+
+    if (snd_mixer_selem_has_capture_switch(elem_capture) < 0) 
+            return -ENOENT;
+
+    if(snd_mixer_selem_get_capture_switch(elem_capture, 0, &sw) < 0)
+        return -ENOENT;
+    if(snd_mixer_selem_set_capture_switch(elem_capture, 0, !sw) < 0)
+        return -ENOENT;
+
+    if(!mono_capture) {
+        if(snd_mixer_selem_get_capture_switch(elem_capture, 1, &sw) < 0)
+            return -ENOENT;
+        if(snd_mixer_selem_set_capture_switch(elem_capture, 1, !sw) < 0)
+            return -ENOENT;
+    }
+
+}
+
+int
+set_alsa_playback_volume(long step) {
     long vol;
     long min;
     long max;
 
-    if(snd_mixer_selem_get_playback_volume(elem, 0, &vol) < 0) {
+    if(snd_mixer_selem_get_playback_volume(elem_playback, 0, &vol) < 0) {
         return -ENOENT;
     }
 
-    if(snd_mixer_selem_get_playback_volume_range(elem, &min, &max) < 0) {
+    if(snd_mixer_selem_get_playback_volume_range(elem_playback, &min, &max) < 0) {
         return -ENOENT;
     }
 
@@ -109,17 +149,17 @@ set_alsa_volume(long step) {
     if (vol < min) vol=min;
     if (vol > max) vol=max;
 
-    if(snd_mixer_selem_set_playback_volume(elem, 0, vol) < 0) {
+    if(snd_mixer_selem_set_playback_volume(elem_playback, 0, vol) < 0) {
         return -ENOENT;
     }
 
-    if(!mono) {
-        if(snd_mixer_selem_get_playback_volume(elem, 1, &vol) < 0) {
+    if(!mono_playback) {
+        if(snd_mixer_selem_get_playback_volume(elem_playback, 1, &vol) < 0) {
             return -ENOENT;
         }
 
         vol+=step;
-        if(snd_mixer_selem_set_playback_volume(elem, 1, vol) < 0) {
+        if(snd_mixer_selem_set_playback_volume(elem_playback, 1, vol) < 0) {
             return -ENOENT;
         }
     }
@@ -127,11 +167,11 @@ set_alsa_volume(long step) {
     return 0;
 }
 
-close_alsa() {
+void close_alsa() {
     snd_mixer_close(handle);
 }
 
-acpi_open(const char* name) {
+int acpi_open(const char* name) {
        int fd;
        int r;
        struct sockaddr_un addr;
@@ -231,22 +271,27 @@ main(int argc, char** argv, char** envp) {
     int pid;
     int err;
     int step;
-    int mix_len;
+    int playback_len;
+    int free_playback=0;
 
-    step = 1;
+    step = 3;
 
     if (argc >= 2) {
-        mix_len=strlen(argv[1])+1;
-        mix=malloc(mix_len);
-        strcpy(mix,argv[1]);
+        playback_len=strlen(argv[1])+1;
+        playback=malloc(playback_len);
+        strcpy(playback,argv[1]);
+	free_playback=1;
     } else {
-        mix=malloc(7);
-        strcpy(mix,"Master");
+        //playback=malloc(7);
+        //strcpy(playback,"Master");
+        playback=default_playback;
     } 
 
     if (argc >= 3) {
         step = atoi(argv[2]);
     } 
+
+    capture=default_capture;
 
     pid = fork();
     if (pid == -1)
@@ -278,12 +323,13 @@ main(int argc, char** argv, char** envp) {
         event = read_line(sock_fd);
         if (event) { 
             if ((err=strncmp(event,"button/volumedown VOLDN",23)) == 0) {
-                if ((err=set_alsa_volume(-step)) < 0) break;
+                if ((err=set_alsa_playback_volume(-step)) < 0) break;
             } else if ((err=strncmp(event,"button/volumeup VOLUP",21)) == 0) {
-                if ((err=set_alsa_volume(step)) < 0) break;
+                if ((err=set_alsa_playback_volume(step)) < 0) break;
             } else if ((err=strncmp(event,"button/mute MUTE",16)) == 0) {
-                if ((err=set_alsa_toggle_mute()) < 0) break;
+                if ((err=set_alsa_toggle_playback_mute()) < 0) break;
             } else if ((err=strncmp(event,"button/f20 F20",14)) == 0) {
+                if ((err=set_alsa_toggle_capture_mute()) < 0) break;
             }
         }
     }
@@ -291,6 +337,6 @@ main(int argc, char** argv, char** envp) {
     close_acpi();
     close_alsa();
 
-    free(mix);
+    if (free_playback) free(playback);
 
 }
