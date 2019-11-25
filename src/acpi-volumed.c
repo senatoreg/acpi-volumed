@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <error.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -25,29 +26,30 @@ static snd_mixer_elem_t *elem_capture;
 int sock_fd;
 const char *socketfile = "/var/run/acpid.socket";
 
+__asm__(".symver snd_mixer_open,snd_mixer_open@ALSA_0.9");
 int
 get_handle() {
     int err;
 
     if ((err = snd_mixer_open(&handle, 0)) < 0) {
-        error("Mixer %s open error: %s\n", card, snd_strerror(err));
+        error(0, 0, "Mixer %s open error: %s\n", card, snd_strerror(err));
         return err;
     }
     if (smixer_level == 0 && (err = snd_mixer_attach(handle, card)) < 0) {
-        error("Mixer attach %s error: %s", card, snd_strerror(err));
+        error(0, 0, "Mixer attach %s error: %s", card, snd_strerror(err));
         snd_mixer_close(handle);
         handle = NULL;
         return err;
     }
     if ((err = snd_mixer_selem_register(handle, smixer_level > 0 ? &smixer_options : NULL, NULL)) < 0) {
-        error("Mixer register error: %s", snd_strerror(err));
+        error(0, 0, "Mixer register error: %s", snd_strerror(err));
         snd_mixer_close(handle);
         handle = NULL;
         return err;
     }
     err = snd_mixer_load(handle);
     if (err < 0) {
-        error("Mixer %s load error: %s", card, snd_strerror(err));
+        error(0, 0, "Mixer %s load error: %s", card, snd_strerror(err));
         snd_mixer_close(handle);
         handle = NULL;
         return err;
@@ -65,7 +67,7 @@ setup_alsa() {
 
     elem_playback = snd_mixer_find_selem(handle, sid_playback);
     if (!elem_playback) {
-        error("Unable to find simple control '%s',%i\n", snd_mixer_selem_id_get_name(sid_playback), snd_mixer_selem_id_get_index(sid_playback));
+        error(0, 0, "Unable to find simple control '%s',%i\n", snd_mixer_selem_id_get_name(sid_playback), snd_mixer_selem_id_get_index(sid_playback));
         snd_mixer_close(handle);
         handle = NULL;
         return -ENOENT;
@@ -78,7 +80,7 @@ setup_alsa() {
 
     elem_capture = snd_mixer_find_selem(handle, sid_capture);
     if (!elem_capture) {
-        error("Unable to find simple control '%s',%i\n", snd_mixer_selem_id_get_name(sid_capture), snd_mixer_selem_id_get_index(sid_capture));
+        error(0, 0, "Unable to find simple control '%s',%i\n", snd_mixer_selem_id_get_name(sid_capture), snd_mixer_selem_id_get_index(sid_capture));
         snd_mixer_close(handle);
         handle = NULL;
         return -ENOENT;
@@ -92,20 +94,31 @@ setup_alsa() {
 int
 set_alsa_toggle_playback_mute() {
     static int sw;
+    int err;
 
-    if (snd_mixer_selem_has_playback_switch(elem_playback) < 0) 
-            return -ENOENT;
+    if ((err = snd_mixer_selem_has_playback_switch(elem_playback)) < 0) {
+      error(0, 0, "Mixer has playback switch error: %s", snd_strerror(err));
+      return err;
+    }
 
-    if(snd_mixer_selem_get_playback_switch(elem_playback, 0, &sw) < 0)
-        return -ENOENT;
-    if(snd_mixer_selem_set_playback_switch(elem_playback, 0, !sw) < 0)
-        return -ENOENT;
-
+    if((err = snd_mixer_selem_get_playback_switch(elem_playback, 0, &sw)) < 0) {
+      error(0, 0, "Mixer get playback 0 switch error: %s", snd_strerror(err));
+      return err;
+    }
+    if((err = snd_mixer_selem_set_playback_switch(elem_playback, 0, !sw)) < 0) {
+      error(0, 0, "Mixer set playback 0 switch error: %s", snd_strerror(err));
+      return err;
+    }
+    
     if(!mono_playback) {
-        if(snd_mixer_selem_get_playback_switch(elem_playback, 1, &sw) < 0)
-            return -ENOENT;
-        if(snd_mixer_selem_set_playback_switch(elem_playback, 1, !sw) < 0)
-            return -ENOENT;
+      if((err = snd_mixer_selem_get_playback_switch(elem_playback, 1, &sw)) < 0) {
+	error(0, 0, "Mixer get playback 1 switch error: %s", snd_strerror(err));
+	return err;
+      }
+	if((err = snd_mixer_selem_set_playback_switch(elem_playback, 1, !sw)) < 0) {
+	  error(0, 0, "Mixer set playback 1 switch error: %s", snd_strerror(err));
+	  return err;
+      }
     }
 
 }
@@ -113,20 +126,31 @@ set_alsa_toggle_playback_mute() {
 int
 set_alsa_toggle_capture_mute() {
     static int sw;
+    int err;
 
-    if (snd_mixer_selem_has_capture_switch(elem_capture) < 0) 
-            return -ENOENT;
-
-    if(snd_mixer_selem_get_capture_switch(elem_capture, 0, &sw) < 0)
-        return -ENOENT;
-    if(snd_mixer_selem_set_capture_switch(elem_capture, 0, !sw) < 0)
-        return -ENOENT;
+    if ((err = snd_mixer_selem_has_capture_switch(elem_capture)) < 0) {
+      error(0, 0, "Mixer has playback switch error: %s", snd_strerror(err));
+      return err;
+    }
+    
+    if((err = snd_mixer_selem_get_capture_switch(elem_capture, 0, &sw)) < 0) {
+      error(0, 0, "Mixer get capture 0 switch error: %s", snd_strerror(err));
+      return err;
+    }
+    if((err = snd_mixer_selem_set_capture_switch(elem_capture, 0, !sw)) < 0) {
+      error(0, 0, "Mixer set capture 0 switch error: %s", snd_strerror(err));
+      return err;
+    }
 
     if(!mono_capture) {
-        if(snd_mixer_selem_get_capture_switch(elem_capture, 1, &sw) < 0)
-            return -ENOENT;
-        if(snd_mixer_selem_set_capture_switch(elem_capture, 1, !sw) < 0)
-            return -ENOENT;
+      if((err = snd_mixer_selem_get_capture_switch(elem_capture, 1, &sw)) < 0) {
+	error(0, 0, "Mixer get capture 1 switch error: %s", snd_strerror(err));
+	return err;
+      }
+      if((err = snd_mixer_selem_set_capture_switch(elem_capture, 1, !sw)) < 0) {
+	error(0, 0, "Mixer set capture 1 switch error: %s", snd_strerror(err));
+	return err;
+      }
     }
 
 }
@@ -177,7 +201,7 @@ int acpi_open(const char* name) {
        struct sockaddr_un addr;
 
     if (strnlen(name, sizeof(addr.sun_path)) > sizeof(addr.sun_path) - 1) {
-        error("ud_connect(): "
+        error(0, 0, "ud_connect(): "
             "socket filename longer than %zu characters: %s",
             sizeof(addr.sun_path) - 1, name);
         errno = EINVAL;
@@ -209,7 +233,7 @@ setup_acpi() {
     /* open the socket */
     sock_fd = acpi_open(socketfile);
     if (sock_fd < 0) {
-        error("can't open socket %s: %s\n",
+        error(0, 0, "can't open socket %s: %s\n",
         socketfile, strerror(errno));
         return EXIT_FAILURE;
     }
@@ -293,6 +317,7 @@ main(int argc, char** argv, char** envp) {
 
     capture=default_capture;
 
+    /*
     pid = fork();
     if (pid == -1)
         return -1;
@@ -308,7 +333,8 @@ main(int argc, char** argv, char** envp) {
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
-
+    */
+    
     if ( (err=setup_alsa()) != 0 ) {
         return err;
     }
@@ -339,4 +365,5 @@ main(int argc, char** argv, char** envp) {
 
     if (free_playback) free(playback);
 
+    return err;
 }

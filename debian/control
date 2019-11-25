@@ -1,0 +1,15 @@
+Source: acpi-volumed
+Section: admin
+Priority: optional
+Maintainer: Giovanni Senatore <giovanni.senatore@gmail.com>
+Build-Depends: debhelper (>= 10), libasound2-dev
+Standards-Version: 4.1.2
+Homepage: https://github.com/senatoreg/acpi-volumed
+#Vcs-Git: https://anonscm.debian.org/git/collab-maint/acpi-volumed.git
+#Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/acpi-volumed.git
+
+Package: acpi-volumed
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: acpi daemon to handle sounds buttons
+ acpi daemon to handle sounds buttons
