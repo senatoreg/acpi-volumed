@@ -3,7 +3,7 @@
 MAINTAINERCLEANFILES = Makefile.in
 
 unit_files =  \
-    acpi-volumed.service
+    $(srcdir)/acpi-volumed.service
 
 EXTRA_DIST = $(unit_files)
 
