@@ -16,7 +16,7 @@
 export CC=clang
 
 %:
-	dh $@
+	dh $@ --builddirectory=build
 
 
 # dh_make generated override targets

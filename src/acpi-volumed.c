@@ -245,50 +245,7 @@ close_acpi() {
     close(sock_fd);
 }
 
-#define MAX_BUFLEN 1024
-static char *
-read_line(int fd) {
-    static char *buf;
-    int buflen = 64;
-    int i = 0;
-    int r;
-    int searching = 1;
-    while (searching) {
-        buf = realloc(buf, buflen);
-        if (!buf) {
-            fprintf(stderr, "ERR: malloc(%d): %s\n",
-            buflen, strerror(errno));
-            return NULL;
-        }
-        memset(buf+i, 0, buflen-i);
-        while (i < buflen) {
-            r = read(fd, buf+i, 1);
-            if (r < 0) {
-                /* we should do something with the data */
-                fprintf(stderr, "ERR: read(): %s\n",
-                strerror(errno));
-                return NULL;
-            } else if (r == 0) {
-                /* signal this in an almost standard way */
-                errno = EPIPE;
-                return NULL;
-            } else if (r == 1) {
-                /* scan for a newline */
-                if (buf[i] == '\n') {
-                    searching = 0;
-                    buf[i] = '\0';
-                    break;
-                }
-                i++;
-            }
-        }
-        if (buflen >= MAX_BUFLEN) {
-            break;
-        }
-            buflen *= 2;
-    }
-    return buf;
-}
+#define MAX_BUFLEN 128
 
 int
 main(int argc, char** argv, char** envp) {
@@ -297,6 +254,8 @@ main(int argc, char** argv, char** envp) {
     int step;
     int playback_len;
     int free_playback=0;
+    struct pollfd *pfds;
+    char event[MAX_BUFLEN];
 
     step = 3;
 
@@ -343,21 +302,28 @@ main(int argc, char** argv, char** envp) {
         return err;
     }
         
+    pfds = malloc(sizeof(struct pollfd));
+
+    pfds->fd = sock_fd;
+    pfds->events = POLLIN;
+
     while (1) {
-        char *event;
-        /* read and handle an event */
-        event = read_line(sock_fd);
-        if (event) { 
-            if ((err=strncmp(event,"button/volumedown VOLDN",23)) == 0) {
-                if ((err=set_alsa_playback_volume(-step)) < 0) break;
-            } else if ((err=strncmp(event,"button/volumeup VOLUP",21)) == 0) {
-                if ((err=set_alsa_playback_volume(step)) < 0) break;
-            } else if ((err=strncmp(event,"button/mute MUTE",16)) == 0) {
-                if ((err=set_alsa_toggle_playback_mute()) < 0) break;
-            } else if ((err=strncmp(event,"button/f20 F20",14)) == 0) {
-                if ((err=set_alsa_toggle_capture_mute()) < 0) break;
-            }
-        }
+	err = poll(pfds, 1, -1);
+
+	if (pfds->revents && POLLIN) {
+	    err = read(pfds->fd, event, MAX_BUFLEN);
+	    if (err > 0) {
+		if ((err=strncmp(event,"button/volumedown VOLDN",23)) == 0) {
+		    if ((err=set_alsa_playback_volume(-step)) < 0) break;
+		} else if ((err=strncmp(event,"button/volumeup VOLUP",21)) == 0) {
+		    if ((err=set_alsa_playback_volume(step)) < 0) break;
+		} else if ((err=strncmp(event,"button/mute MUTE",16)) == 0) {
+		    if ((err=set_alsa_toggle_playback_mute()) < 0) break;
+		} else if ((err=strncmp(event,"button/f20 F20",14)) == 0) {
+		    if ((err=set_alsa_toggle_capture_mute()) < 0) break;
+		}
+	    }
+	}
     }
 
     close_acpi();
