@@ -54,6 +54,7 @@ get_handle() {
         handle = NULL;
         return err;
     }
+    return 0;
 }
 
 int
@@ -120,6 +121,7 @@ set_alsa_toggle_playback_mute() {
 	  return err;
       }
     }
+    return 0;
 
 }
 
@@ -152,6 +154,7 @@ set_alsa_toggle_capture_mute() {
 	return err;
       }
     }
+    return 0;
 
 }
 
@@ -242,7 +245,7 @@ setup_acpi() {
 
 int
 close_acpi() {
-    close(sock_fd);
+    return close(sock_fd);
 }
 
 #define MAX_BUFLEN 128
