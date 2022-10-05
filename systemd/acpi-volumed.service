@@ -6,4 +6,4 @@ Description=ACPI Volume Daemon
 ExecStart=/usr/bin/acpi-volumed
 
 [Install]
-WantedBy=session.target
+WantedBy=default.target
