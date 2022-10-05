@@ -54,7 +54,7 @@ get_handle() {
         handle = NULL;
         return err;
     }
-    return 0;
+    return err;
 }
 
 int
