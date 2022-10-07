@@ -27,4 +27,4 @@ AC_CHECK_FUNCS([memset socket strerror])
 
 PKG_CHECK_MODULES([ALSA], [alsa])
 
-AC_OUTPUT([Makefile src/Makefile systemd/Makefile])
+AC_OUTPUT([Makefile src/Makefile])

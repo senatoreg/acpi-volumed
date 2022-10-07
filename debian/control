@@ -2,7 +2,7 @@ Source: acpi-volumed
 Section: admin
 Priority: optional
 Maintainer: Giovanni Senatore <giovanni.senatore@gmail.com>
-Build-Depends: debhelper (>= 10), libasound2-dev
+Build-Depends: debhelper-compat (= 12), libasound2-dev
 Standards-Version: 4.1.2
 Homepage: https://github.com/senatoreg/acpi-volumed
 #Vcs-Git: https://anonscm.debian.org/git/collab-maint/acpi-volumed.git
