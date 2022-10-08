@@ -1,6 +1,7 @@
 [Unit]
 Description=ACPI Volume Daemon
-#Requires=acpid.service
+ConditionPathExists=/var/run/acpid.socket
+ConditionUser=!root
 
 [Service]
 ExecStart=/usr/bin/acpi-volumed
