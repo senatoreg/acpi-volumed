@@ -4,7 +4,9 @@ ConditionPathExists=/var/run/acpid.socket
 ConditionUser=!root
 
 [Service]
-ExecStart=/usr/bin/acpi-volumed
+Type=exec
+EnvironmentFile=-%h/.config/acpi-volumed/acpi-volumed.conf
+ExecStart=/usr/bin/acpi-volumed $ACPI_VOLUMED_OPTIONS
 
 [Install]
 WantedBy=default.target
