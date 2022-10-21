@@ -252,32 +252,30 @@ close_acpi() {
 
 int
 main(int argc, char** argv, char** envp) {
-    int pid;
-    int err;
-    int step;
-    int playback_len;
-    int free_playback=0;
+    int pid, err, step, c;
+    int playback_len, free_playback=0;
     struct pollfd *pfds;
     char event[MAX_BUFLEN];
 
-    step = 3;
-
-    if (argc >= 2) {
-        playback_len=strlen(argv[1])+1;
-        playback=malloc(playback_len);
-        strcpy(playback,argv[1]);
-	free_playback=1;
-    } else {
-        //playback=malloc(7);
-        //strcpy(playback,"Master");
-        playback=default_playback;
-    } 
-
-    if (argc >= 3) {
-        step = atoi(argv[2]);
-    } 
-
+    step = 1;
+    playback=default_playback;
     capture=default_capture;
+
+    while ((c = getopt (argc, argv, "d:s:c:")) != -1)
+        switch (c)
+            {
+            case 'd':
+                playback = optarg;
+                break;
+            case 'c':
+                capture = optarg;
+                break;
+            case 's':
+                step = atoi(optarg);
+                break;
+            default:
+                break;
+            }
 
     /*
     pid = fork();
@@ -331,8 +329,6 @@ main(int argc, char** argv, char** envp) {
 
     close_acpi();
     close_alsa();
-
-    if (free_playback) free(playback);
 
     return err;
 }
