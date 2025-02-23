@@ -26,7 +26,6 @@ static snd_mixer_elem_t *elem_capture;
 int sock_fd;
 const char *socketfile = "/var/run/acpid.socket";
 
-__asm__(".symver snd_mixer_open,snd_mixer_open@ALSA_0.9");
 int
 get_handle() {
     int err;
@@ -320,6 +319,8 @@ main(int argc, char** argv, char** envp) {
 		    if ((err=set_alsa_playback_volume(step)) < 0) break;
 		} else if ((err=strncmp(event,"button/mute MUTE",16)) == 0) {
 		    if ((err=set_alsa_toggle_playback_mute()) < 0) break;
+		} else if ((err=strncmp(event,"button/micmute MICMUTE",22)) == 0) {
+		    if ((err=set_alsa_toggle_capture_mute()) < 0) break;
 		} else if ((err=strncmp(event,"button/f20 F20",14)) == 0) {
 		    if ((err=set_alsa_toggle_capture_mute()) < 0) break;
 		}
